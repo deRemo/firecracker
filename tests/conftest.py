@@ -546,7 +546,12 @@ guest_kernel_linux_6_1 = pytest.fixture(
     guest_kernel_fxt,
     params=kernel_params("vmlinux-6.1*"),
 )
-guest_kernel_default = guest_kernel_linux_6_1
+
+guest_kernel_linux_6_18 = pytest.fixture(
+    guest_kernel_fxt,
+    params=kernel_params("vmlinux-6.18*"),
+)
+guest_kernel_default = guest_kernel_linux_6_18
 
 
 def match_rootfs_to_kernel(request):
@@ -585,6 +590,16 @@ def rootfs_rw(request):
 def uvm_plain(microvm_factory, guest_kernel_default, rootfs, pci_enabled):
     """Create a vanilla VM, non-parametrized"""
     return microvm_factory.build(guest_kernel_default, rootfs, pci=pci_enabled)
+
+
+@pytest.fixture
+def uvm_plain_6_18(microvm_factory, guest_kernel_linux_6_18, rootfs, pci_enabled):
+    uvm = microvm_factory.build(guest_kernel_linux_6_18, rootfs, pci=pci_enabled)
+    uvm.spawn()
+    uvm.basic_config(vcpu_count=2, mem_size_mib=256)
+    uvm.add_net_iface()
+    uvm.start()
+    return uvm
 
 
 @pytest.fixture

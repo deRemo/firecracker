@@ -16,7 +16,7 @@ def select_supported_kernels():
     """Select guest kernels supported by the current combination of kernel and
     instance type.
     """
-    supported_kernels = [r"vmlinux-5.10.\d+", r"vmlinux-6.1.\d+"]
+    supported_kernels = [r"vmlinux-5.10.\d+", r"vmlinux-6.1.\d+", r"vmlinux-6.18.\d+"]
 
     # Booting with MPTable is deprecated but we still want to test
     # for it. Until we drop support for it we will be building a 5.10 guest
