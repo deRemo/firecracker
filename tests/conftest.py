@@ -24,6 +24,8 @@ import inspect
 import json
 import os
 import shutil
+import signal
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -96,6 +98,14 @@ def pytest_addoption(parser):
         default=None,
         type=Path,
     )
+
+    parser.addoption(
+        "--perf-host",
+        action="store_true",
+        default=False,
+        help="Run perf record system-wide during each test and save perf.data to results_dir",
+    )
+
 
 
 def pytest_report_header():
@@ -707,3 +717,34 @@ def uvm_any(
     """
     # pylint: disable=unused-argument
     return request.getfixturevalue(f"uvm_{uvm_lifecycle}")
+
+
+@pytest.fixture(autouse=True)
+def perf_host(request, results_dir):
+    """Run perf record system-wide during the test when --perf-host is passed.
+
+    The resulting perf.data file is saved to the test's results_dir.
+    """
+    if not request.config.getoption("--perf-host"):
+        yield
+        return
+
+    output_dir = results_dir or Path(tempfile.mkdtemp(prefix="perf-"))
+    output_dir.mkdir(parents=True, exist_ok=True)
+    perf_data = output_dir / "perf.data"
+
+    proc = subprocess.Popen(
+        ["perf", "record", "-F", "99", "-a", "-g", "--call-graph", "dwarf", "-o", str(perf_data)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    yield perf_data
+
+    proc.send_signal(signal.SIGINT)
+    proc.wait(timeout=10)
+
+    subprocess.run(
+        f"perf script -i {perf_data} > {perf_data.with_suffix(".script")}",
+        shell=True, check=False, timeout=120,
+    )

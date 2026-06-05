@@ -150,9 +150,14 @@ RUN apt-get update \
         cmake \
         # for crosvm (vhost-user-blk backend)
         libcap2 \
+        # for perf profiling
+        linux-tools-common linux-tools-generic \
         # for debugging
         gdb strace trace-cmd \
     && rm -rf /var/lib/apt/lists/*
+
+# Bypass the kernel-version-checking perf wrapper by symlinking the real binary
+RUN ln -sf $(find /usr/lib/linux-tools -name perf \( -type f -o -type l \) | head -1) /usr/local/bin/perf
 
 
 # Add cross-compile toolchain for devtool checkbuild command (rust target added in devctr stage)
