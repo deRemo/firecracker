@@ -9,6 +9,13 @@ set -eu -o pipefail
 TOOLS_DIR=$(dirname $0)
 source "$TOOLS_DIR/functions"
 
+# Install perf if not available (needed for --perf-host / --perf-guest)
+if ! command -v perf &>/dev/null; then
+    apt-get update -qq &>/dev/null
+    apt-get install -y -qq linux-tools-common linux-tools-generic &>/dev/null
+    ln -sf $(find /usr/lib/linux-tools -name perf \( -type f -o -type l \) | head -1) /usr/local/bin/perf
+fi
+
 # Set our TMPDIR inside /srv, so all files created in the session end up in one
 # place
 say "Create TMPDIR in /srv"
