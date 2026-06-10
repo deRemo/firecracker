@@ -8,6 +8,8 @@
 
 import os
 
+os.environ.setdefault("ARTIFACTS_OVERRIDE", "s3://spec.ccfc.min/firecracker-ci-custom/6.18-ci-onboard-0")
+
 from common import BKPipeline
 
 # In `devtool_opts`, we restrict both the set of CPUs on which the docker container's threads can run,
@@ -160,7 +162,7 @@ for test in tests:
     ab_opts = test.pop("ab_opts", "")
     devtool_opts += " --performance"
     test_script_opts = ""
-    artifacts = []
+    artifacts = ["s3://spec.ccfc.min/firecracker-ci-custom/6.18-ci-onboard-0"]
     if REVISION_A:
         devtool_opts += " --ab"
         test_script_opts = f'{ab_opts} run --binaries-a build/{REVISION_A}/ --binaries-b build/{REVISION_B} --pytest-opts "{test_selector}"'
