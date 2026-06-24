@@ -592,17 +592,17 @@ def test_host_vs_guest_cpu_features(uvm):
             # a window of time.
             # https://github.com/torvalds/linux/commit/adeec61a4723fd3e39da68db4cc4d924e6d7f641
             #
-            # While Amazon Linux kernels (v5.10 and v6.1) backported the above commit, our test
-            # ubuntu kernel (v6.8) and our guest kernels (v5.10 and v6.1) don't pick it.
+            # Amazon Linux kernels v5.10 and v6.1 backported the above commit
+            # https://github.com/amazonlinux/linux/commit/706f18a (v5.10)
+            # https://github.com/amazonlinux/linux/commit/fce3458 (v6.1)
+
+            # However, KVM still advertises ssbs in the guests regardless
+            # of the errata.
             host_has_ssbs = global_props.host_os not in {
                 "amzn2",
                 "amzn2023",
             } and global_props.host_linux_version_tpl < (6, 11)
-            guest_has_ssbs = vm.guest_kernel_version < (6, 11)
-
-            if host_has_ssbs and not guest_has_ssbs:
-                expected_host_minus_guest |= {"ssbs"}
-            if not host_has_ssbs and guest_has_ssbs:
+            if not host_has_ssbs:
                 expected_guest_minus_host |= {"ssbs"}
 
             assert host_feats - guest_feats == expected_host_minus_guest
@@ -629,17 +629,17 @@ def test_host_vs_guest_cpu_features(uvm):
             # a window of time.
             # https://github.com/torvalds/linux/commit/adeec61a4723fd3e39da68db4cc4d924e6d7f641
             #
-            # While Amazon Linux kernels (v5.10 and v6.1) backported the above commit, our test
-            # ubuntu kernel (v6.8) and our guest kernels (v5.10 and v6.1) don't pick it.
+            # Amazon Linux kernels v5.10 and v6.1 backported the above commit
+            # https://github.com/amazonlinux/linux/commit/706f18a (v5.10)
+            # https://github.com/amazonlinux/linux/commit/fce3458 (v6.1)
+
+            # However, KVM still advertises ssbs in the guests regardless
+            # of the errata.
             host_has_ssbs = global_props.host_os not in {
                 "amzn2",
                 "amzn2023",
             } and global_props.host_linux_version_tpl < (6, 11)
-            guest_has_ssbs = vm.guest_kernel_version < (6, 11)
-
-            if host_has_ssbs and not guest_has_ssbs:
-                expected_host_minus_guest |= {"ssbs"}
-            if not host_has_ssbs and guest_has_ssbs:
+            if not host_has_ssbs:
                 expected_guest_minus_host |= {"ssbs"}
 
             assert host_feats - guest_feats == expected_host_minus_guest
