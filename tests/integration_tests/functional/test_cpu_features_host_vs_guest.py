@@ -142,7 +142,7 @@ AMD_MILAN_HOST_ONLY_FEATS_6_1 = AMD_MILAN_HOST_ONLY_FEATS - {
 # https://github.com/torvalds/linux/commit/78ce84b9e0a54a0c91a7449f321c1f852c0cd3fc
 AMD_MILAN_HOST_ONLY_FEATS_6_18 = AMD_MILAN_HOST_ONLY_FEATS_6_1 - {
     "ibpb_exit_to_user",
-} | {"xtopology", "debug_swap"}
+}
 
 AMD_GENOA_HOST_ONLY_FEATS = AMD_MILAN_HOST_ONLY_FEATS | {
     "avic",
@@ -174,7 +174,7 @@ AMD_GENOA_HOST_ONLY_FEATS_6_18 = AMD_GENOA_HOST_ONLY_FEATS_6_1 - {
     # https://github.com/torvalds/linux/commit/45cf86f26148 (KVM advertises FLUSH_L1D, v6.2)
     # https://github.com/torvalds/linux/commit/da3db168fb67 (KVM virtualises MSR_IA32_FLUSH_CMD on SVM, v6.4)
     "flush_l1d",
-} | {"debug_swap", "cpuid_fault", "xtopology", "la57", "vnmi"}
+} | {"cpuid_fault", "la57", "vnmi"}
 
 INTEL_SPR_GNR_HOST_ONLY_FEATS_6_18_REMOVED = {
     # Since v6.11, flags declared in cpufeatures.h without a quoted /proc/cpuinfo name
@@ -290,6 +290,31 @@ def test_host_vs_guest_cpu_features(uvm):
             if not host_has_invpcid_single and guest_has_invpcid_single:
                 expected_guest_minus_host |= {"invpcid_single"}
 
+            # Since v6.11, xtopology is user-visible in /proc/cpuinfo.
+            # https://github.com/torvalds/linux/commit/78ce84b9e0a54a0c91a7449f321c1f852c0cd3fc
+            host_has_xtopology = host_version >= (6, 11)
+            guest_has_xtopology = vm.guest_kernel_version >= (6, 11)
+
+            if host_has_xtopology and not guest_has_xtopology:
+                expected_host_minus_guest |= {"xtopology"}
+            if not host_has_xtopology and guest_has_xtopology:
+                expected_guest_minus_host |= {"xtopology"}
+
+            # Since v6.11, debug_swap is user-visible in /proc/cpuinfo.
+            # https://github.com/torvalds/linux/commit/78ce84b9e0a54a0c91a7449f321c1f852c0cd3fc
+            # Starting v5.13, KVM masks it out via cpuid_entry_override.
+            # https://github.com/torvalds/linux/commit/d9db0fd6c5c9fa7c9a462a2c54d5e91455a74fca
+            # Therefore, on older kernels KVM passes the raw CPUID bit through to guests unfiltered.
+            host_has_debug_swap = host_version >= (6, 11)
+            guest_has_debug_swap = host_version < (
+                5,
+                13,
+            ) and vm.guest_kernel_version >= (6, 11)
+            if host_has_debug_swap and not guest_has_debug_swap:
+                expected_host_minus_guest |= {"debug_swap"}
+            if not host_has_debug_swap and guest_has_debug_swap:
+                expected_guest_minus_host |= {"debug_swap"}
+
             assert host_feats - guest_feats == expected_host_minus_guest
             assert guest_feats - host_feats == expected_guest_minus_host
 
@@ -319,6 +344,31 @@ def test_host_vs_guest_cpu_features(uvm):
                 expected_host_minus_guest |= {"invpcid_single"}
             if not host_has_invpcid_single and guest_has_invpcid_single:
                 expected_guest_minus_host |= {"invpcid_single"}
+
+            # Since v6.11, xtopology is user-visible in /proc/cpuinfo.
+            # https://github.com/torvalds/linux/commit/78ce84b9e0a54a0c91a7449f321c1f852c0cd3fc
+            host_has_xtopology = host_version >= (6, 11)
+            guest_has_xtopology = vm.guest_kernel_version >= (6, 11)
+
+            if host_has_xtopology and not guest_has_xtopology:
+                expected_host_minus_guest |= {"xtopology"}
+            if not host_has_xtopology and guest_has_xtopology:
+                expected_guest_minus_host |= {"xtopology"}
+
+            # Since v6.11, debug_swap is user-visible in /proc/cpuinfo.
+            # https://github.com/torvalds/linux/commit/78ce84b9e0a54a0c91a7449f321c1f852c0cd3fc
+            # Starting v5.13, KVM masks it out via cpuid_entry_override.
+            # https://github.com/torvalds/linux/commit/d9db0fd6c5c9fa7c9a462a2c54d5e91455a74fca
+            # Therefore, on older kernels KVM passes the raw CPUID bit through to guests unfiltered.
+            host_has_debug_swap = host_version >= (6, 11)
+            guest_has_debug_swap = host_version < (
+                5,
+                13,
+            ) and vm.guest_kernel_version >= (6, 11)
+            if host_has_debug_swap and not guest_has_debug_swap:
+                expected_host_minus_guest |= {"debug_swap"}
+            if not host_has_debug_swap and guest_has_debug_swap:
+                expected_guest_minus_host |= {"debug_swap"}
 
             assert host_feats - guest_feats == expected_host_minus_guest
             assert guest_feats - host_feats == expected_guest_minus_host
