@@ -29,6 +29,14 @@ for SQUASHFS in *.squashfs; do
         cp -v id_rsa.pub squashfs-root/root/.ssh/authorized_keys
         cp -v id_rsa $RSA
     fi
+
+    say "Set block device queue tuning parameters via udev"
+    mkdir -pv squashfs-root/etc/udev/rules.d
+    echo 'ACTION=="add|change", KERNEL=="vd*", ATTR{queue/rotational}="0"' \
+        > squashfs-root/etc/udev/rules.d/99-blk-tuning.rules
+    echo 'ACTION=="add|change", KERNEL=="vd*", ATTR{queue/max_sectors_kb}="1280", ATTR{queue/read_ahead_kb}="128"' \
+        >> squashfs-root/etc/udev/rules.d/99-blk-tuning.rules
+
     # re-squash
     mv -v $SQUASHFS $SQUASHFS.orig
     mksquashfs squashfs-root $SQUASHFS -all-root -noappend -comp zstd
