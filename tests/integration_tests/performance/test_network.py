@@ -142,3 +142,38 @@ def test_network_tcp_throughput(
         )
 
     emit_iperf3_metrics(metrics, data, warmup_sec)
+
+    # Flush and collect Firecracker-internal net device metrics
+    fc_metrics = network_microvm.flush_metrics()
+
+    # Per-device metrics for eth0
+    net_metrics = fc_metrics["net_eth0"]
+
+    # Packet counts
+    metrics.put_metric("fc_rx_packets", net_metrics["rx_packets_count"], "Count")
+    metrics.put_metric("fc_tx_packets", net_metrics["tx_packets_count"], "Count")
+
+    # Average packet size (bytes / packets)
+    if net_metrics["rx_packets_count"] > 0:
+        avg_rx_packet_size = (
+            net_metrics["rx_bytes_count"] / net_metrics["rx_packets_count"]
+        )
+        metrics.put_metric("fc_avg_rx_packet_size", avg_rx_packet_size, "Bytes")
+    if net_metrics["tx_packets_count"] > 0:
+        avg_tx_packet_size = (
+            net_metrics["tx_bytes_count"] / net_metrics["tx_packets_count"]
+        )
+        metrics.put_metric("fc_avg_tx_packet_size", avg_tx_packet_size, "Bytes")
+
+    # Queue kick counts (guest-to-host notifications)
+    metrics.put_metric(
+        "fc_rx_queue_event_count", net_metrics["rx_queue_event_count"], "Count"
+    )
+    metrics.put_metric(
+        "fc_tx_queue_event_count", net_metrics["tx_queue_event_count"], "Count"
+    )
+
+    # Global interrupt triggers (host-to-guest notifications)
+    metrics.put_metric(
+        "fc_interrupt_triggers", fc_metrics["interrupts"]["triggers"], "Count"
+    )
