@@ -71,7 +71,7 @@ class SpectreMeltdownChecker:
         res = utils.check_output(f"sh {self.path} --batch json")
         return self._parse_output(res.stdout)
 
-    def expected_vulnerabilities(self, cpu_template_name):
+    def expected_vulnerabilities(self, cpu_template_name, guest_kernel_version=None):
         """
         There is a REPTAR exception reported on INTEL_ICELAKE when spectre-meltdown-checker.sh
         script is run inside the guest from below the tests:
@@ -95,6 +95,32 @@ class SpectreMeltdownChecker:
         ):
             return {
                 '{"NAME": "REPTAR", "CVE": "CVE-2023-23583", "VULNERABLE": true, "INFOS": "Your microcode is too old to mitigate the vulnerability"}'
+            }
+
+        # There is a SRSO / INCEPTION (CVE-2023-20569) exception reported on AMD_MILAN and
+        # AMD_GENOA when spectre-meltdown-checker.sh script is run inside the guest
+        # in the following tests:
+        #     test_spectre_meltdown_checker_on_guest and
+        #     test_check_vulnerability_files_ab
+        # On kernels >= 6.18, when SRSO safe RET is active but IBPB_BRTYPE CPU flag is
+        # absent, the kernel reports "Vulnerable: Safe RET, no microcode" instead
+        # of the previous "Mitigation: safe RET, no microcode". The checker treats
+        # any status starting with "Vulnerable" as a vulnerability.
+        # This only affects guest kernels >= 6.18 running on host kernels < 6.18,
+        # because KVM did not synthesize the IBPB_BRTYPE flag for guests prior to
+        # 6.18.
+        # https://github.com/amazonlinux/linux/blob/amazon-6.18.y/mainline/arch/x86/kvm/cpuid.c#L1226
+        # With a CPU template (e.g. T2A), the guest sees a Zen 2 CPU which is not
+        # affected by INCEPTION, so the checker does not flag it.
+        if (
+            global_props.cpu_codename in ["AMD_MILAN", "AMD_GENOA"]
+            and cpu_template_name == "None"
+            and guest_kernel_version
+            and guest_kernel_version >= (6, 18)
+            and global_props.host_linux_version_tpl < (6, 18)
+        ):
+            return {
+                '{"NAME": "INCEPTION", "CVE": "CVE-2023-20569", "VULNERABLE": true, "INFOS": "Vulnerable: Safe RET, no microcode"}'
             }
         return set()
 
@@ -180,6 +206,29 @@ def get_vuln_files_exception_dict(template, guest_kernel_version=None):
         and guest_kernel_version >= (6, 18)
     ):
         exception_dict["spectre_v2"] = r"^Mitigation:.*BHI:.*"
+
+    # Exception for spec_rstack_overflow (SRSO / Inception)
+    # =====================================================
+    #
+    # Guests on kernel v6.18+ without a CPU template, running on host kernel prior to v6.18 (AMD only)
+    # --------------------------------------------
+    # On kernels >= 6.18, when SRSO safe RET is active but IBPB_BRTYPE CPU flag is
+    # absent, the kernel reports "Vulnerable: Safe RET, no microcode" instead
+    # of the previous "Mitigation: safe RET, no microcode". The checker treats
+    # any status starting with "Vulnerable" as a vulnerability.
+    # This only affects guest kernels >= 6.18 running on host kernels < 6.18,
+    # because KVM did not synthesize the IBPB_BRTYPE flag for guests prior to
+    # 6.18.
+    # https://github.com/amazonlinux/linux/blob/amazon-6.18.y/mainline/arch/x86/kvm/cpuid.c#L1226
+
+    if (
+        global_props.cpu_codename in ["AMD_MILAN", "AMD_GENOA"]
+        and template == "None"
+        and guest_kernel_version
+        and guest_kernel_version >= (6, 18)
+        and global_props.host_linux_version_tpl < (6, 18)
+    ):
+        exception_dict["spec_rstack_overflow"] = r"^Vulnerable: Safe RET, no microcode"
 
     return exception_dict
 
@@ -280,5 +329,5 @@ def test_spectre_meltdown_checker_on_guest(
         assert res_b <= res_a
     else:
         assert res_b == spectre_meltdown_checker.expected_vulnerabilities(
-            uvm_any.cpu_template_name
+            uvm_any.cpu_template_name, uvm_any.guest_kernel_version
         )
