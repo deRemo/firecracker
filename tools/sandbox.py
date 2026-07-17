@@ -12,12 +12,19 @@ import argparse
 import json
 import os
 import re
+import tempfile
 from pathlib import Path
+
+import requests
 
 import host_tools.cargo_build as build_tools
 from framework.artifacts import disks, kernels
 from framework.defs import DEFAULT_BINARY_DIR, FC_WORKSPACE_DIR
 from framework.microvm import MicroVMFactory
+from integration_tests.security.test_vulnerabilities import (
+    CHECKER_URL,
+    REMOTE_CHECKER_PATH,
+)
 
 kernels = list(kernels("vmlinux-*"))
 rootfs = list(disks("*.ext4"))
@@ -155,3 +162,14 @@ if args.gdb:
 
 uvm.start()
 uvm.get_all_metrics()
+
+# Download spectre-meltdown-checker and copy it into the guest
+print("Downloading spectre-meltdown-checker...")
+resp = requests.get(CHECKER_URL, timeout=30)
+resp.raise_for_status()
+checker_path = Path(tempfile.mktemp(suffix=".sh"))
+checker_path.write_bytes(resp.content)
+uvm.ssh.scp_put(checker_path, REMOTE_CHECKER_PATH)
+uvm.ssh.run(f"chmod +x {REMOTE_CHECKER_PATH}")
+checker_path.unlink()
+print(f"spectre-meltdown-checker available in guest at {REMOTE_CHECKER_PATH}")
