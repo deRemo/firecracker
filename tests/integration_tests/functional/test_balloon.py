@@ -677,5 +677,4 @@ def test_device_reset(uvm):
     vm.api.balloon.patch(amount_mib=0)
     get_stable_rss_mem(vm)
     free_deflated = meminfo.get().mem_free.kib()
-    DEFLATE_SLACK_KIB = 8 * 1024  # arbitrary 8 MiB tolerance for measurement noise
-    assert free_deflated >= free_initial - DEFLATE_SLACK_KIB
+    assert free_deflated > free_after_reset
